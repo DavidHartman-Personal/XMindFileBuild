@@ -18,6 +18,7 @@ import java.io.BufferedReader;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Random;
@@ -39,7 +40,7 @@ import org.xmind.core.internal.Style;
 import org.xmind.core.internal.zip.ZipStreamOutputTarget;
 import org.xmind.core.style.IStyle;
 import org.xmind.core.style.IStyleSheet;
-import org.xmind.ui.mindmap.*;
+import org.xmind.ui.style.Styles;
 
 
 @SuppressWarnings("nls")
@@ -60,20 +61,33 @@ public class CompressionTest {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
+    	 createDirStyleSheet();
+    
     }
-
+public ITopic shellScripts;
+public ITopic perlScripts;
     private void createWorkbookContents(IWorkbook workbook) {
         ITopic root = workbook.getPrimarySheet().getRootTopic();
         root.setTitleText("Code Repository");
         
+  	  IStyleSheet styleSheet1 = workbook.getStyleSheet();
+  	  IStyle dirStyle1 = styleSheet1.createStyle(IStyle.TOPIC);
+  	dirStyle1.setProperty(Styles.FillColor,"#FF7F00");
+	  dirStyle1.setProperty(Styles.TextColor,"#ffffff");
+	  dirStyle1.setProperty(Styles.FontWeight,Styles.FONT_WEIGHT_BOLD);
+	  
+	  styleSheet1.addStyle(dirStyle1, IStyleSheet.NORMAL_STYLES);
+  	  
        
         workbook.getPrimarySheet().getRootTopic().setStructureClass("org.xmind.ui.logic.right");
         //add a shell scripts node
-        ITopic shellScripts = workbook.createTopic();
+        shellScripts = workbook.createTopic();
         shellScripts.setTitleText("Shell Scripts");
+        shellScripts.setStyleId(dirStyle1.getId());
         
-        ITopic perlScripts = workbook.createTopic();
+        perlScripts = workbook.createTopic();
         perlScripts.setTitleText("Perl Scripts");
+        perlScripts.setStyleId(dirStyle1.getId());
         
         root.add(shellScripts);
         root.add(perlScripts);
@@ -125,6 +139,17 @@ public class CompressionTest {
              }
          }
     }
+    
+    public IStyleSheet styleSheet;
+    public IStyle dirStyle ;
+    
+    public void createDirStyleSheet() {
+    	//  styleSheet = workbook.getStyleSheet();
+    	//  dirStyle = styleSheet.createStyle(IStyle.TOPIC);
+    	//  styleSheet.addStyle(dirStyle, IStyleSheet.NORMAL_STYLES);
+    	//  dirStyle.setProperty(Styles.FillColor,"0x#0083BF");
+    	//  dirStyle.setProperty(Styles.TextColor,"0xffffff");
+    }
     private void getTopicInfo(ITopic inTopic) {
     	System.out.println("For topic: " + inTopic.getTitleText());
     	Set<IBoundary> bndry = inTopic.getBoundaries();
@@ -144,13 +169,14 @@ public class CompressionTest {
     	//IStyleSheet styleSheet = workbook.getStyleSheet();
     	IStyle style = styleSheet.findStyle(inTopic.getStyleId());
     	if (style == null) {
-    		System.out.println("No style sheet");
+    	  System.out.println("No style sheet");
     	  style = styleSheet.createStyle(IStyle.TOPIC);
     	  styleSheet.addStyle(style, IStyleSheet.NORMAL_STYLES);
-    	  style.setProperty(Style. "0x000000");
+    	 
+    	  style.setProperty(Styles.FillColor,"0x#0083BF");
     	  
-    	  style.setProperty(Style.FillColor, “0x000000”);  // fill color black
-    	  style.setProperty(Style.Textcolor, “0xffffff”);  // text color white
+    	 // style.setProperty(Style.FillColor, “0x000000”);  // fill color black
+    	  //style.setProperty(Style.Textcolor, “0xffffff”);  // text color white
     	}
     }
     private String readFile( String file ) throws IOException {
@@ -272,11 +298,13 @@ public void run() {
         	  System.out.println("Getting Syle Sheet from node: " + level1Topics.get(i).getTitleText());
         	  getTopicInfo(level1Topics.get(i));
           }
-      //    createWorkbookContents(workbook);
+          createWorkbookContents(workbook);
           //print out tree
      //     printTree(workbook.getPrimarySheet().getRootTopic());
-      //    removeChildless(workbook.getPrimarySheet().getRootTopic().getAllChildren());
-      //    save(workbook);
+          List<ITopic> topicList = new ArrayList<ITopic>();
+          topicList.add(shellScripts);
+          removeChildless(topicList);   //workbook.getPrimarySheet().getRootTopic().);
+          save(workbook);
             System.out.println("Done.");
         } catch (Throwable e) {
             e.printStackTrace();
