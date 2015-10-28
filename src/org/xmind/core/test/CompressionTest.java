@@ -15,18 +15,20 @@ package org.xmind.core.test;
 
 import java.io.BufferedOutputStream;
 import java.io.BufferedReader;
-import java.io.ByteArrayOutputStream;
 import java.io.File;
+import java.io.FileFilter;
 import java.io.IOException;
-import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Date;
 import java.util.Iterator;
 import java.util.List;
-import java.util.Random;
 import java.util.Set;
 import java.util.zip.ZipOutputStream;
 import java.io.FileOutputStream;
 import java.io.FileReader;
 import java.io.FilenameFilter;
+
+import javax.swing.filechooser.FileNameExtensionFilter;
 
 import org.xmind.core.Core;
 import org.xmind.core.CoreException;
@@ -36,150 +38,178 @@ import org.xmind.core.INotesContent;
 import org.xmind.core.IPlainNotesContent;
 import org.xmind.core.ITopic;
 import org.xmind.core.IWorkbook;
-import org.xmind.core.internal.Style;
 import org.xmind.core.internal.zip.ZipStreamOutputTarget;
+import org.xmind.core.marker.IMarker;
+import org.xmind.core.marker.IMarkerGroup;
+import org.xmind.core.marker.IMarkerSheet;
 import org.xmind.core.style.IStyle;
 import org.xmind.core.style.IStyleSheet;
+import org.xmind.core.util.FileUtils;
 import org.xmind.ui.style.Styles;
+import org.apache.commons.io.filefilter.*;
 
 
 @SuppressWarnings("nls")
 public class CompressionTest {
 
-    IWorkbook workbook = Core.getWorkbookBuilder().createWorkbook();
+IWorkbook workbook = Core.getWorkbookBuilder().createWorkbook();
 
-    IWorkbook curWorkbook;
+IWorkbook curWorkbook;
    
-    public CompressionTest() {
-    	 try {
-    		 File curBook = new File("Z:\\Users\\dhartman\\Dropbox\\hello-world_formatted.xmind");
-    		 curWorkbook = Core.getWorkbookBuilder().loadFromFile(curBook);
-		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		} catch (CoreException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
-    	 createDirStyleSheet();
-    
-    }
+public CompressionTest() {
+
+//	public class perlFileFilter = new FileFilter() {
+//	    private final FileNameExtensionFilter filter =
+//	        new FileNameExtensionFilter("Perl files",
+//	            "pl", "pm");
+//	    public boolean accept(File file) {
+//	        return filter.accept(file);
+//	    }
+//	};
+	try {
+		 File curBook = new File("Z:\\Users\\dhartman\\Dropbox\\hello-world.xmind");
+		 curWorkbook = Core.getWorkbookBuilder().loadFromFile(curBook);
+	} catch (IOException e) {
+		// TODO Auto-generated catch block
+		e.printStackTrace();
+	} catch (CoreException e) {
+		// TODO Auto-generated catch block
+		e.printStackTrace();
+	}
+	 createDirStyleSheet();
+
+}
 public ITopic shellScripts;
 public ITopic perlScripts;
-    private void createWorkbookContents(IWorkbook workbook) {
+public static IStyleSheet styleSheet;
+public static IStyle groupStyle ;
+public static IStyle dirStyle ;
+public static IStyle mapStyle;
+public static IMarker folderMarker ;
+int curLevel=0;
+int printIndentSize=-1;
+
+private void createWorkbookContents(IWorkbook workbook) {
         ITopic root = workbook.getPrimarySheet().getRootTopic();
+        workbook.getPrimarySheet().setStyleId(mapStyle.getId());
+
         root.setTitleText("Code Repository");
-        
-  	  IStyleSheet styleSheet1 = workbook.getStyleSheet();
-  	  IStyle dirStyle1 = styleSheet1.createStyle(IStyle.TOPIC);
-  	dirStyle1.setProperty(Styles.FillColor,"#FF7F00");
-	  dirStyle1.setProperty(Styles.TextColor,"#ffffff");
-	  dirStyle1.setProperty(Styles.FontWeight,Styles.FONT_WEIGHT_BOLD);
-	  
-	  styleSheet1.addStyle(dirStyle1, IStyleSheet.NORMAL_STYLES);
-  	  
-       
+        Date dt = new Date();
+        root.addLabel(dt.toString());
         workbook.getPrimarySheet().getRootTopic().setStructureClass("org.xmind.ui.logic.right");
         //add a shell scripts node
         shellScripts = workbook.createTopic();
         shellScripts.setTitleText("Shell Scripts");
-        shellScripts.setStyleId(dirStyle1.getId());
+        shellScripts.setStyleId(groupStyle.getId());
         
         perlScripts = workbook.createTopic();
         perlScripts.setTitleText("Perl Scripts");
-        perlScripts.setStyleId(dirStyle1.getId());
+        perlScripts.setStyleId(groupStyle.getId());
         
         root.add(shellScripts);
         root.add(perlScripts);
         
-        FilenameFilter textFilter = new FilenameFilter() {
-			public boolean accept(File dir, String name) {
-				String lowercaseName = name.toLowerCase();
-				if (lowercaseName.endsWith(".sh")) {
-					return true;
-				} else {
-					return false;
-				}
-			}
-		};
-        File[] files = new File("C:\\cygwin64\\home\\dhartman\\0-Common Objects\\").listFiles();  //  listFiles();
-        //initialize curTopic to Root
-       // System.out.println("root topic id:"+root.getId());
-        addTopics(shellScripts,files);
+        File[] files = new File("C:\\cygwin64\\home\\dhartman\\0-Common Objects\\").listFiles(); //(new MyPerlFileNameFilter());   //listFiles();  //  listFiles();
+        addTopics(shellScripts,files,".sh");
+        
+        
+        String[] perlExtensions = new String[] { "pl", "pm" };
+        String dir="C:\\cygwin64\\home\\dhartman\\0-Common Objects\\";
+        File[] perlFiles = getFileList(dir,perlExtensions);
+        addTopics(perlScripts,perlFiles,".pl");
+        
+        removeChildless(shellScripts.getAllChildren(),".sh");
+        removeChildless(perlScripts.getAllChildren(),".pl");
     }
 
-    private void addTopics(ITopic inCurTopic,File[] inFiles) {
-    	 for (File file : inFiles) {
-             if (file.isDirectory()) {
-             	//if a directory, create a new topic and add files as children nodes
-                 //System.out.println("Directory: " + file.getName());
-                 ITopic newParentTopic = inCurTopic.getOwnedWorkbook().createTopic();  //workbook.createTopic();                
-                 newParentTopic.setTitleText(file.getName()+"/");
-                 addTopics(newParentTopic,file.listFiles()); // Calls same method again.
-                 inCurTopic.add(newParentTopic);
-             } else {
-                
-                if (file.getName().endsWith(".sh")) {
-                //	System.out.println("Adding child node for File: " + file.getName());
-                	String fileText = null;
-					try {
-						fileText = readFile(file.getAbsolutePath());
-					} catch (IOException e) {
-						
-						e.printStackTrace();
-					}
-	                ITopic topic = inCurTopic.getOwnedWorkbook().createTopic(); // workbook.createTopic();
-	             	topic.setTitleText(file.getName());
-	             	INotesContent notes = inCurTopic.getOwnedWorkbook().createNotesContent(INotes.PLAIN);
-	                ((IPlainNotesContent) notes)
-	                        .setTextContent(fileText);
-	                topic.getNotes().setContent(INotes.PLAIN, notes);
-	              	inCurTopic.add(topic);
-                }
-             }
+public File[] getFileList(String inPath,String[] fileExtensions) {
+	//List<File> files = (List<File>) FileUtils.listFiles(dir, extensions, true);
+	
+	List<File> listFiles = (List<File>) org.apache.commons.io.FileUtils.listFiles(
+			new File(inPath), 
+			fileExtensions, 
+			true);
+	File[] returnFileList = new File[listFiles.size()];
+    listFiles.toArray(returnFileList);	
+	return returnFileList;
+}
+
+private void addTopics(ITopic inCurTopic,File[] inFiles, String fileExtension) {
+	 for (File file : inFiles) {
+         if (file.isDirectory()) {
+         	//if a directory, create a new topic and add files as children nodes
+             //System.out.println("Directory: " + file.getName());
+             ITopic newParentTopic = inCurTopic.getOwnedWorkbook().createTopic();  //workbook.createTopic();                
+             newParentTopic.setTitleText(file.getName()+"/");
+             addTopics(newParentTopic,file.listFiles(),fileExtension); // Calls same method again.
+             newParentTopic.setStyleId(dirStyle.getId());
+            // newParentTopic.addMarker(folderMarker.getId());
+             inCurTopic.add(newParentTopic);
+         } else {
+            
+            if (file.getName().endsWith(fileExtension)) {
+            //	System.out.println("Adding child node for File: " + file.getName());
+            	String fileText = null;
+				try {
+					fileText = readFile(file.getAbsolutePath());
+				} catch (IOException e) {
+					
+					e.printStackTrace();
+				}
+                ITopic topic = inCurTopic.getOwnedWorkbook().createTopic(); // workbook.createTopic();
+             	topic.setTitleText(file.getName());
+             	INotesContent notes = inCurTopic.getOwnedWorkbook().createNotesContent(INotes.PLAIN);
+                ((IPlainNotesContent) notes)
+                        .setTextContent(fileText);
+                topic.getNotes().setContent(INotes.PLAIN, notes);
+              	inCurTopic.add(topic);
+            }
          }
-    }
-    
-    public IStyleSheet styleSheet;
-    public IStyle dirStyle ;
-    
-    public void createDirStyleSheet() {
-    	//  styleSheet = workbook.getStyleSheet();
-    	//  dirStyle = styleSheet.createStyle(IStyle.TOPIC);
-    	//  styleSheet.addStyle(dirStyle, IStyleSheet.NORMAL_STYLES);
-    	//  dirStyle.setProperty(Styles.FillColor,"0x#0083BF");
-    	//  dirStyle.setProperty(Styles.TextColor,"0xffffff");
-    }
-    private void getTopicInfo(ITopic inTopic) {
-    	System.out.println("For topic: " + inTopic.getTitleText());
-    	Set<IBoundary> bndry = inTopic.getBoundaries();
-    	for (Iterator<IBoundary> bndryItr = bndry.iterator(); bndryItr.hasNext();){
-    	      System.out.println("Boundry info: " + bndryItr.next().getStyleType());
-    	}
-    	 
-    	IStyleSheet styleSheet = workbook.getStyleSheet();
-    	System.out.println("Style sheet:" + styleSheet.toString());
-    	Set<IStyle> allStyles = styleSheet.getAllStyles();
-    	for (Iterator<IStyle> styleItr = allStyles.iterator(); styleItr.hasNext();){
-  	      System.out.println("Style info: " + styleItr.next().getName());
-  	    }
-    	System.out.println("topic style id: " + inTopic.getStyleId());
-    	System.out.println("topic style type id: " + inTopic.getStyleType());
-    	
-    	//IStyleSheet styleSheet = workbook.getStyleSheet();
-    	IStyle style = styleSheet.findStyle(inTopic.getStyleId());
-    	if (style == null) {
-    	  System.out.println("No style sheet");
-    	  style = styleSheet.createStyle(IStyle.TOPIC);
-    	  styleSheet.addStyle(style, IStyleSheet.NORMAL_STYLES);
-    	 
-    	  style.setProperty(Styles.FillColor,"0x#0083BF");
-    	  
-    	 // style.setProperty(Style.FillColor, “0x000000”);  // fill color black
-    	  //style.setProperty(Style.Textcolor, “0xffffff”);  // text color white
-    	}
-    }
-    private String readFile( String file ) throws IOException {
+     }
+}
+  
+public void createDirStyleSheet() {
+	//System.out.println("Setting up the style sheets");
+	 styleSheet = workbook.getStyleSheet();
+	 //workbook.getPrimarySheet().
+	 
+	 mapStyle = styleSheet.createStyle(IStyle.MAP);
+	 mapStyle.setProperty(Styles.BackgroundColor, "#999999");
+	 styleSheet.addStyle(mapStyle, IStyleSheet.NORMAL_STYLES);
+	 
+	 groupStyle = styleSheet.createStyle(IStyle.TOPIC);
+	 groupStyle.setProperty(Styles.FillColor,"#FF7F00");
+	 groupStyle.setProperty(Styles.TextColor,"#ffffff");
+	 groupStyle.setProperty(Styles.FontWeight,Styles.FONT_WEIGHT_BOLD);
+	 groupStyle.setProperty(Styles.LineClass, Styles.BRANCH_CONN_ROUNDEDELBOW);
+     styleSheet.addStyle(groupStyle, IStyleSheet.NORMAL_STYLES);
+  
+     dirStyle = styleSheet.createStyle(IStyle.TOPIC);
+     dirStyle.setProperty(Styles.FillColor,"#0083BF");
+     dirStyle.setProperty(Styles.TextColor,"#ffffff");
+     dirStyle.setProperty(Styles.FontWeight,Styles.FONT_WEIGHT_BOLD);
+     dirStyle.setProperty(Styles.LineClass, Styles.BRANCH_CONN_ROUNDEDELBOW);
+     styleSheet.addStyle(dirStyle, IStyleSheet.NORMAL_STYLES);
+ 	  
+}
+private void getTopicInfo(ITopic inTopic) {
+	Set<IBoundary> bndry = inTopic.getBoundaries();
+	for (Iterator<IBoundary> bndryItr = bndry.iterator(); bndryItr.hasNext();){
+	      System.out.println("Boundry info: " + bndryItr.next().getStyleType());
+	}
+	 
+	IStyleSheet styleSheet = workbook.getStyleSheet();
+	Set<IStyle> allStyles = styleSheet.getAllStyles();
+	
+	//IStyleSheet styleSheet = workbook.getStyleSheet();
+	IStyle style = styleSheet.findStyle(inTopic.getStyleId());
+	if (style == null) {
+	  style = styleSheet.createStyle(IStyle.TOPIC);
+	  styleSheet.addStyle(style, IStyleSheet.NORMAL_STYLES);
+	  style.setProperty(Styles.FillColor,"0x#0083BF");
+	}
+}
+private String readFile( String file ) throws IOException {
         BufferedReader reader = new BufferedReader( new FileReader (file));
         String         line = null;
         StringBuilder  stringBuilder = new StringBuilder();
@@ -192,91 +222,79 @@ public ITopic perlScripts;
 
         return stringBuilder.toString();
     }
-
-
-
-    private void save(IWorkbook workbook) throws IOException, CoreException {
-       // long start;
-       // long end;
-       // ByteArrayOutputStream stream = new ByteArrayOutputStream(524288);
-        //FileOutputStream outFile;
-        // NEW
-        FileOutputStream fos = new FileOutputStream("Z:\\Users\\dhartman\\Dropbox\\hello-world.xmind");
-        BufferedOutputStream bos = new BufferedOutputStream(fos);
-        //ZipOutputStream zos = new ZipOutputStream(bos);
-        
-        // END NEW
-        try {
-            //start = System.currentTimeMillis();
-            workbook.save(new ZipStreamOutputTarget(
-                    new ZipOutputStream(bos),true));
-            //end = System.currentTimeMillis();
-        } finally {
-            bos.close();
-        }
+private void save(IWorkbook workbook) throws IOException, CoreException {
+  
+    FileOutputStream fos = new FileOutputStream("Z:\\Users\\dhartman\\Dropbox\\hello-world.xmind");
+    BufferedOutputStream bos = new BufferedOutputStream(fos);
+    try {
+       workbook.save(new ZipStreamOutputTarget(
+       new ZipOutputStream(bos),true));
+    } finally {
+        bos.close();
     }
-    int curLevel=0;
-    public String indentString(int level) {
-    	String retString = "";
-    	for (int i=0;i<level*5;i++) {
-    		retString= retString + " "; 
+}
+
+public String indentString(int level) {
+	String retString = "";
+	for (int i=0;i<level*5;i++) {
+		retString= retString + " "; 
     	}
     	return retString;
     }
-    private void removeChildless(List<ITopic> inTopics){
+private void removeChildless(List<ITopic> inTopics, String fileExtension){
  //   private void removeChildless(IWorkbook inworkbook){
-	// List<ITopic> allTopics = inworkbook.getPrimarySheet().getRootTopic().getAllChildren();
-	 //List<Session> wfSessions = inWorkflow.getSessions();	
-	 System.out.println(indentString(curLevel) + "At Level [" +curLevel + "] Topic has " + inTopics.size() +" nodes to review under node: " + inTopics.get(0).getParent().getTitleText());
-		if (inTopics.size() != 0) {
-			//loop through the children topics starting at this node...
-			for (int i=0;i<inTopics.size();i++) {
-				//System.out.println("Topic " + inTopics.get(i).getTitleText() +" has [" + inTopics.get(i).getAllChildren().size() + "] children");
-				ITopic parentTopic = inTopics.get(i).getParent();
-				if (inTopics.get(i).getAllChildren().size() != 0) {
-					//for each of this ones children...call it again
-					curLevel++;
-					removeChildless(inTopics.get(i).getAllChildren());
-					System.out.println(indentString(curLevel)+ "At level " + curLevel + " unwinding from loop for " + inTopics.get(i).getTitleText());
-					if (!inTopics.get(i).hasChildren(ITopic.ATTACHED)) {
-						System.out.println("Removing node as it has no children...and it did at some point " + inTopics.get(i).getTitleText());
-						inTopics.get(i).getParent().remove(inTopics.get(i));
-					}
-					curLevel--;
-				} else {
-					if (inTopics.get(i).getTitleText().endsWith(".sh")) {
-						//leave it alone
-					} else {
-						//remove it
-						//removing this node (and it's children...I think)
-						System.out.println(indentString(curLevel) + "Removed topic "+inTopics.get(i).getTitleText()+" from node: " + parentTopic.getTitleText());
-						//parentTopic.setTitleText("DELETED:" + parentTopic.getTitleText());
-						parentTopic.remove(inTopics.get(i));
-						//double check to see if the partent is now childless...if so that node should be removed as well.
-						//System.out.println("Now parent has children:" + parentTopic.getAllChildren().size());
-						if (!parentTopic.hasChildren(ITopic.ATTACHED)) {
-							//if the one removed was the last one and there are no other valid children...remove the parent node as well
-							//System.out.println(indentString(curLevel-4) + "Removing parent node " + parentTopic.getTitleText() + " as well since no more children.");
-							// get grand parent
-							//ITopic grandParent = parentTopic.getParent();
-							//System.out.println("grand parent is:" + grandParent.getTitleText() + " and has [" + grandParent.getAllChildren().size() + "] children");
-							//parentTopic.getParent().remove(parentTopic);
-							//System.out.println("grand parent is:" + grandParent.getTitleText() + " and has [" + grandParent.getAllChildren().size() + "] children");
-							/*if (grandParent.hasChildren(ITopic.ATTACHED)) {
-								System.out.println("grand has children" + grandParent.getTitleText());
-								//if the parent still has children, try to remove them again
-								removeChildless(grandParent.getAllChildren());
-							}
-							*/
-						}
-					//	inworkbook.getPrimarySheet().getRootTopic().remove(allTopics.get(i));
-					}
+// List<ITopic> allTopics = inworkbook.getPrimarySheet().getRootTopic().getAllChildren();
+ //List<Session> wfSessions = inWorkflow.getSessions();	
+ System.out.println(indentString(curLevel) + "At Level [" +curLevel + "] Topic has " + inTopics.size() +" nodes to review under node: " + inTopics.get(0).getParent().getTitleText());
+if (inTopics.size() != 0) {
+	//loop through the children topics starting at this node...
+for (int i=0;i<inTopics.size();i++) {
+	System.out.println("Topic " + inTopics.get(i).getTitleText() +" has [" + inTopics.get(i).getAllChildren().size() + "] children");
+	ITopic parentTopic = inTopics.get(i).getParent();
+	if (inTopics.get(i).getAllChildren().size() != 0) {
+		//for each of this ones children...call it again
+		curLevel++;
+		removeChildless(inTopics.get(i).getAllChildren(),fileExtension);
+		System.out.println(indentString(curLevel)+ "At level " + curLevel + " unwinding from loop for " + inTopics.get(i).getTitleText());
+		if (!inTopics.get(i).hasChildren(ITopic.ATTACHED)) {
+			System.out.println("Removing node as it has no children...and it did at some point " + inTopics.get(i).getTitleText());
+			inTopics.get(i).getParent().remove(inTopics.get(i));
+		}
+		curLevel--;
+	} else {
+		if (inTopics.get(i).getTitleText().endsWith(fileExtension)) {
+			//leave it alone
+		} else {
+			//remove it
+			//removing this node (and it's children...I think)
+			System.out.println(indentString(curLevel) + "Removed topic "+inTopics.get(i).getTitleText()+" from node: " + parentTopic.getTitleText());
+			//parentTopic.setTitleText("DELETED:" + parentTopic.getTitleText());
+			parentTopic.remove(inTopics.get(i));
+			//double check to see if the partent is now childless...if so that node should be removed as well.
+			//System.out.println("Now parent has children:" + parentTopic.getAllChildren().size());
+			if (!parentTopic.hasChildren(ITopic.ATTACHED)) {
+				//if the one removed was the last one and there are no other valid children...remove the parent node as well
+				//System.out.println(indentString(curLevel-4) + "Removing parent node " + parentTopic.getTitleText() + " as well since no more children.");
+				// get grand parent
+				//ITopic grandParent = parentTopic.getParent();
+				//System.out.println("grand parent is:" + grandParent.getTitleText() + " and has [" + grandParent.getAllChildren().size() + "] children");
+				//parentTopic.getParent().remove(parentTopic);
+				//System.out.println("grand parent is:" + grandParent.getTitleText() + " and has [" + grandParent.getAllChildren().size() + "] children");
+				/*if (grandParent.hasChildren(ITopic.ATTACHED)) {
+					System.out.println("grand has children" + grandParent.getTitleText());
+					//if the parent still has children, try to remove them again
+					removeChildless(grandParent.getAllChildren());
 				}
-				//allTopics.get(i).getAllChildren();  //
+				*/
+			}
+		//	inworkbook.getPrimarySheet().getRootTopic().remove(allTopics.get(i));
+		}
+	}
+	//allTopics.get(i).getAllChildren();  //
 			}
 		}
 }
-int printIndentSize=-1;
+
 
 public void printTree(ITopic inTopic) {
 	if (inTopic.hasChildren(ITopic.ATTACHED)) {
@@ -299,13 +317,8 @@ public void run() {
         	  getTopicInfo(level1Topics.get(i));
           }
           createWorkbookContents(workbook);
-          //print out tree
-     //     printTree(workbook.getPrimarySheet().getRootTopic());
-          List<ITopic> topicList = new ArrayList<ITopic>();
-          topicList.add(shellScripts);
-          removeChildless(topicList);   //workbook.getPrimarySheet().getRootTopic().);
           save(workbook);
-            System.out.println("Done.");
+          System.out.println("Done.");
         } catch (Throwable e) {
             e.printStackTrace();
         }

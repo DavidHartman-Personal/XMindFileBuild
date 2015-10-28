@@ -3,5 +3,6 @@
 	<classpathentry kind="src" path="src"/>
 	<classpathentry kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER"/>
 	<classpathentry kind="lib" path="C:/Users/dhartman/git/XMindFileBuild/xmindcore.jar"/>
+	<classpathentry kind="lib" path="Z:/Users/dhartman/Dropbox/Work/Java/Libraries/commons-io-2.4.jar"/>
 	<classpathentry kind="output" path="bin"/>
 </classpath>
