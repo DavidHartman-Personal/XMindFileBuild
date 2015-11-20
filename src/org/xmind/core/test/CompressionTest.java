@@ -18,6 +18,9 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileFilter;
 import java.io.IOException;
+import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Date;
 import java.util.Iterator;
@@ -52,31 +55,22 @@ import org.apache.commons.io.filefilter.*;
 @SuppressWarnings("nls")
 public class CompressionTest {
 
-IWorkbook workbook = Core.getWorkbookBuilder().createWorkbook();
 
-IWorkbook curWorkbook;
-   
+private static final String outFileName = "Z:\\Users\\dhartman\\Dropbox\\scripts.xmind";
+public static final String startDirectory="C:\\cygwin64\\home\\dhartman\\";
+
+public static final String[] perlExtensions = new String[] { "pl", "pm" };
+public static final String[] shellExtensions = new String[] { "sh" };
+
+IWorkbook workbook;
+//IWorkbook curWorkbook;
+
+//constructer
 public CompressionTest() {
 
-//	public class perlFileFilter = new FileFilter() {
-//	    private final FileNameExtensionFilter filter =
-//	        new FileNameExtensionFilter("Perl files",
-//	            "pl", "pm");
-//	    public boolean accept(File file) {
-//	        return filter.accept(file);
-//	    }
-//	};
-	try {
-		 File curBook = new File("Z:\\Users\\dhartman\\Dropbox\\hello-world.xmind");
-		 curWorkbook = Core.getWorkbookBuilder().loadFromFile(curBook);
-	} catch (IOException e) {
-		// TODO Auto-generated catch block
-		e.printStackTrace();
-	} catch (CoreException e) {
-		// TODO Auto-generated catch block
-		e.printStackTrace();
-	}
-	 createDirStyleSheet();
+	System.out.println("Creating workbook: " + outFileName);
+	workbook = Core.getWorkbookBuilder().createWorkbook();
+	createStyles();
 
 }
 public ITopic shellScripts;
@@ -85,6 +79,7 @@ public static IStyleSheet styleSheet;
 public static IStyle groupStyle ;
 public static IStyle dirStyle ;
 public static IStyle mapStyle;
+public static IStyle fileStyle;
 public static IMarker folderMarker ;
 int curLevel=0;
 int printIndentSize=-1;
@@ -109,66 +104,88 @@ private void createWorkbookContents(IWorkbook workbook) {
         root.add(shellScripts);
         root.add(perlScripts);
         
-        File[] files = new File("C:\\cygwin64\\home\\dhartman\\0-Common Objects\\").listFiles(); //(new MyPerlFileNameFilter());   //listFiles();  //  listFiles();
-        addTopics(shellScripts,files,".sh");
+       
         
+        File[] shFiles = getFileList(startDirectory,shellExtensions);
+        //File[] shFiles = new File(startDirectory).listFiles();
+        addTopics(shellScripts,shFiles,shellExtensions);
         
-        String[] perlExtensions = new String[] { "pl", "pm" };
-        String dir="C:\\cygwin64\\home\\dhartman\\0-Common Objects\\";
-        File[] perlFiles = getFileList(dir,perlExtensions);
-        addTopics(perlScripts,perlFiles,".pl");
+        File[] perlFiles = getFileList(startDirectory,perlExtensions);
+        addTopics(perlScripts,perlFiles,perlExtensions);
         
-        removeChildless(shellScripts.getAllChildren(),".sh");
-        removeChildless(perlScripts.getAllChildren(),".pl");
+        removeChildless(shellScripts.getAllChildren(),shellExtensions);
+        removeChildless(perlScripts.getAllChildren(),perlExtensions);
+        
+        shellScripts.setFolded(true);
+        perlScripts.setFolded(true);
     }
 
 public File[] getFileList(String inPath,String[] fileExtensions) {
 	//List<File> files = (List<File>) FileUtils.listFiles(dir, extensions, true);
 	
-	List<File> listFiles = (List<File>) org.apache.commons.io.FileUtils.listFiles(
+	List<File> listFiles = (List<File>) org.apache.commons.io.FileUtils.listFilesAndDirs(
 			new File(inPath), 
-			fileExtensions, 
-			true);
+			new SuffixFileFilter(fileExtensions),
+			//fileExtensions, 
+			null);
+			//TrueFileFilter.INSTANCE);
 	File[] returnFileList = new File[listFiles.size()];
     listFiles.toArray(returnFileList);	
 	return returnFileList;
 }
 
-private void addTopics(ITopic inCurTopic,File[] inFiles, String fileExtension) {
+private void addTopics(ITopic inCurTopic,File[] inFiles, String[] fileExtension) {
 	 for (File file : inFiles) {
+		// System.out.println("Looking at file: " + file.getName());
+		 if(file.getName().startsWith(".")) {
+			 //ignore any "." files or directories
+			 continue;
+		 }
          if (file.isDirectory()) {
          	//if a directory, create a new topic and add files as children nodes
              //System.out.println("Directory: " + file.getName());
              ITopic newParentTopic = inCurTopic.getOwnedWorkbook().createTopic();  //workbook.createTopic();                
              newParentTopic.setTitleText(file.getName()+"/");
-             addTopics(newParentTopic,file.listFiles(),fileExtension); // Calls same method again.
+             addTopics(newParentTopic,
+            		// getFileList(file.getName(),fileExtension),
+            		 file.listFiles(),
+            		 fileExtension); // Calls same method again.
              newParentTopic.setStyleId(dirStyle.getId());
             // newParentTopic.addMarker(folderMarker.getId());
              inCurTopic.add(newParentTopic);
          } else {
-            
-            if (file.getName().endsWith(fileExtension)) {
-            //	System.out.println("Adding child node for File: " + file.getName());
-            	String fileText = null;
-				try {
-					fileText = readFile(file.getAbsolutePath());
-				} catch (IOException e) {
-					
-					e.printStackTrace();
+        	  for (int i = 0; i < fileExtension.length; i++) {
+				if (file.getName().endsWith(fileExtension[i])) {
+					// if (file.getName().endsWith(fileExtension)) {
+					//	System.out.println("Adding child node for File: " + file.getName());
+					String fileText = null;
+					try {
+						fileText = readFile(file.getAbsolutePath());
+					} catch (IOException e) {
+						
+						e.printStackTrace();
+					}
+					ITopic topic = inCurTopic.getOwnedWorkbook().createTopic(); // workbook.createTopic();
+					topic.setTitleText(file.getName());
+					INotesContent notes = inCurTopic.getOwnedWorkbook().createNotesContent(INotes.PLAIN);
+					((IPlainNotesContent) notes)
+					.setTextContent(fileText);
+					Date lastModified = new Date(file.lastModified()); 
+					SimpleDateFormat formatter = new SimpleDateFormat("MM/dd/yyyy HH:mm:ss");  
+					String formattedDateString = formatter.format(lastModified); 
+					List<String> dateCollection = new ArrayList<String>();
+					dateCollection.add(formattedDateString);
+					//topic.setLabels(dateCollection);
+					topic.getNotes().setContent(INotes.PLAIN, notes);
+					topic.setStyleId(fileStyle.getId());
+					inCurTopic.add(topic);
 				}
-                ITopic topic = inCurTopic.getOwnedWorkbook().createTopic(); // workbook.createTopic();
-             	topic.setTitleText(file.getName());
-             	INotesContent notes = inCurTopic.getOwnedWorkbook().createNotesContent(INotes.PLAIN);
-                ((IPlainNotesContent) notes)
-                        .setTextContent(fileText);
-                topic.getNotes().setContent(INotes.PLAIN, notes);
-              	inCurTopic.add(topic);
-            }
-         }
+			}  //end if file has right extension
+         }  //end else
      }
 }
   
-public void createDirStyleSheet() {
+public void createStyles() {
 	//System.out.println("Setting up the style sheets");
 	 styleSheet = workbook.getStyleSheet();
 	 //workbook.getPrimarySheet().
@@ -190,6 +207,16 @@ public void createDirStyleSheet() {
      dirStyle.setProperty(Styles.FontWeight,Styles.FONT_WEIGHT_BOLD);
      dirStyle.setProperty(Styles.LineClass, Styles.BRANCH_CONN_ROUNDEDELBOW);
      styleSheet.addStyle(dirStyle, IStyleSheet.NORMAL_STYLES);
+     
+     fileStyle = styleSheet.createStyle(IStyle.TOPIC);
+     fileStyle.setProperty(Styles.FillColor,"#FF7F00");
+     fileStyle.setProperty(Styles.TextColor,"#ffffff");
+   //  fileStyle.setProperty(Styles.FontWeight,Styles.FONT_WEIGHT_BOLD);
+     fileStyle.setProperty(Styles.LineClass, Styles.BRANCH_CONN_ROUNDEDELBOW);
+     fileStyle.setProperty(Styles.FontSize, "10");
+     fileStyle.setProperty(Styles.ShapeClass,Styles.TOPIC_SHAPE_ROUNDEDRECT);
+    // fileStyle.setProperty(Styles.Label, "10");     
+     styleSheet.addStyle(fileStyle, IStyleSheet.NORMAL_STYLES);
  	  
 }
 private void getTopicInfo(ITopic inTopic) {
@@ -201,7 +228,6 @@ private void getTopicInfo(ITopic inTopic) {
 	IStyleSheet styleSheet = workbook.getStyleSheet();
 	Set<IStyle> allStyles = styleSheet.getAllStyles();
 	
-	//IStyleSheet styleSheet = workbook.getStyleSheet();
 	IStyle style = styleSheet.findStyle(inTopic.getStyleId());
 	if (style == null) {
 	  style = styleSheet.createStyle(IStyle.TOPIC);
@@ -224,13 +250,14 @@ private String readFile( String file ) throws IOException {
     }
 private void save(IWorkbook workbook) throws IOException, CoreException {
   
-    FileOutputStream fos = new FileOutputStream("Z:\\Users\\dhartman\\Dropbox\\hello-world.xmind");
+    FileOutputStream fos = new FileOutputStream(outFileName);
     BufferedOutputStream bos = new BufferedOutputStream(fos);
     try {
        workbook.save(new ZipStreamOutputTarget(
        new ZipOutputStream(bos),true));
     } finally {
         bos.close();
+        System.out.println("Saved workbook: " + outFileName);
     }
 }
 
@@ -241,58 +268,34 @@ public String indentString(int level) {
     	}
     	return retString;
     }
-private void removeChildless(List<ITopic> inTopics, String fileExtension){
- //   private void removeChildless(IWorkbook inworkbook){
-// List<ITopic> allTopics = inworkbook.getPrimarySheet().getRootTopic().getAllChildren();
- //List<Session> wfSessions = inWorkflow.getSessions();	
- System.out.println(indentString(curLevel) + "At Level [" +curLevel + "] Topic has " + inTopics.size() +" nodes to review under node: " + inTopics.get(0).getParent().getTitleText());
-if (inTopics.size() != 0) {
-	//loop through the children topics starting at this node...
-for (int i=0;i<inTopics.size();i++) {
-	System.out.println("Topic " + inTopics.get(i).getTitleText() +" has [" + inTopics.get(i).getAllChildren().size() + "] children");
-	ITopic parentTopic = inTopics.get(i).getParent();
-	if (inTopics.get(i).getAllChildren().size() != 0) {
-		//for each of this ones children...call it again
-		curLevel++;
-		removeChildless(inTopics.get(i).getAllChildren(),fileExtension);
-		System.out.println(indentString(curLevel)+ "At level " + curLevel + " unwinding from loop for " + inTopics.get(i).getTitleText());
-		if (!inTopics.get(i).hasChildren(ITopic.ATTACHED)) {
-			System.out.println("Removing node as it has no children...and it did at some point " + inTopics.get(i).getTitleText());
-			inTopics.get(i).getParent().remove(inTopics.get(i));
-		}
-		curLevel--;
-	} else {
-		if (inTopics.get(i).getTitleText().endsWith(fileExtension)) {
-			//leave it alone
-		} else {
-			//remove it
-			//removing this node (and it's children...I think)
-			System.out.println(indentString(curLevel) + "Removed topic "+inTopics.get(i).getTitleText()+" from node: " + parentTopic.getTitleText());
-			//parentTopic.setTitleText("DELETED:" + parentTopic.getTitleText());
-			parentTopic.remove(inTopics.get(i));
-			//double check to see if the partent is now childless...if so that node should be removed as well.
-			//System.out.println("Now parent has children:" + parentTopic.getAllChildren().size());
-			if (!parentTopic.hasChildren(ITopic.ATTACHED)) {
-				//if the one removed was the last one and there are no other valid children...remove the parent node as well
-				//System.out.println(indentString(curLevel-4) + "Removing parent node " + parentTopic.getTitleText() + " as well since no more children.");
-				// get grand parent
-				//ITopic grandParent = parentTopic.getParent();
-				//System.out.println("grand parent is:" + grandParent.getTitleText() + " and has [" + grandParent.getAllChildren().size() + "] children");
-				//parentTopic.getParent().remove(parentTopic);
-				//System.out.println("grand parent is:" + grandParent.getTitleText() + " and has [" + grandParent.getAllChildren().size() + "] children");
-				/*if (grandParent.hasChildren(ITopic.ATTACHED)) {
-					System.out.println("grand has children" + grandParent.getTitleText());
-					//if the parent still has children, try to remove them again
-					removeChildless(grandParent.getAllChildren());
+private void removeChildless(List<ITopic> inTopics, String[] fileExtension){
+
+	if (inTopics.size() != 0) {
+		//loop through the children topics starting at this node...
+		for (int i=0;i<inTopics.size();i++) {
+			ITopic parentTopic = inTopics.get(i).getParent();
+			if (inTopics.get(i).getAllChildren().size() != 0) {
+				curLevel++;
+				removeChildless(inTopics.get(i).getAllChildren(),fileExtension);
+				if (!inTopics.get(i).hasChildren(ITopic.ATTACHED)) {
+					inTopics.get(i).getParent().remove(inTopics.get(i));
 				}
-				*/
+				curLevel--;
+			} else {
+				boolean noExtensionMatch=false;
+				for (int j = 0; j < fileExtension.length; j++) {
+					if (inTopics.get(i).getTitleText().endsWith(fileExtension[j]) && !noExtensionMatch) {
+						noExtensionMatch=true;
+					} else {
+						//remove parent?!?
+					}
+				} //after going through all extensions...see if we should remove or not
+				if(!noExtensionMatch) {
+					parentTopic.remove(inTopics.get(i));
+				}
 			}
-		//	inworkbook.getPrimarySheet().getRootTopic().remove(allTopics.get(i));
 		}
 	}
-	//allTopics.get(i).getAllChildren();  //
-			}
-		}
 }
 
 
@@ -301,7 +304,7 @@ public void printTree(ITopic inTopic) {
 		printIndentSize++;
 		List<ITopic> childTopics = inTopic.getAllChildren();
 		for (int i=0;i<childTopics.size();i++) {
-			System.out.println(indentString(printIndentSize)+"Level [" + printIndentSize + "] node:" + childTopics.get(i).getTitleText());
+//			System.out.println(indentString(printIndentSize)+"Level [" + printIndentSize + "] node:" + childTopics.get(i).getTitleText());
 			printTree(childTopics.get(i));
 		}
 		printIndentSize--;
@@ -311,11 +314,11 @@ public void printTree(ITopic inTopic) {
 }
 public void run() {
         try {
-          List<ITopic> level1Topics=curWorkbook.getPrimarySheet().getRootTopic().getAllChildren();
-          for (int i=0;i<level1Topics.size();i++) {
-        	  System.out.println("Getting Syle Sheet from node: " + level1Topics.get(i).getTitleText());
-        	  getTopicInfo(level1Topics.get(i));
-          }
+//          List<ITopic> level1Topics=curWorkbook.getPrimarySheet().getRootTopic().getAllChildren();
+//          for (int i=0;i<level1Topics.size();i++) {
+//        	  System.out.println("Getting Syle Sheet from node: " + level1Topics.get(i).getTitleText());
+//        	  getTopicInfo(level1Topics.get(i));
+//          }
           createWorkbookContents(workbook);
           save(workbook);
           System.out.println("Done.");

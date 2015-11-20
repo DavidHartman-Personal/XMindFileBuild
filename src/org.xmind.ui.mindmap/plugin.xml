@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?eclipse version="3.2"?>
+<plugin>
+   <extension
+         point="org.eclipse.core.expressions.propertyTesters">
+      <propertyTester
+            class="org.xmind.ui.internal.branch.BranchPartPropertyTester"
+            id="org.xmind.ui.propertyTester.branchPart"
+            namespace="org.xmind.ui.branch"
+            properties="type,folded,index,policyId,structureId,hasParent,preferredPosition,property"
+            type="org.xmind.ui.mindmap.IBranchPart">
+      </propertyTester>
+      <propertyTester
+            class="org.xmind.ui.internal.StyleSheetPropertyTester"
+            id="org.xmind.ui.propertyTester.styleSheet"
+            namespace="org.xmind.ui.resource.styleSheet"
+            properties="type"
+            type="org.xmind.core.style.IStyleSheet">
+      </propertyTester>
+      <propertyTester
+            class="org.xmind.ui.internal.PreferencePropertyTester"
+            id="org.xmind.ui.propertyTester.preference"
+            namespace="org.xmind.ui.preference"
+            properties="key"
+            type="java.lang.Object">
+      </propertyTester>
+   </extension>
+
+   <extension
+         point="org.eclipse.core.runtime.preferences">
+      <initializer
+            class="org.xmind.ui.internal.prefs.PreferenceInitializer">
+      </initializer>
+   </extension>
+   <extension
+         point="org.eclipse.ui.elementFactories">
+      <factory
+            class="org.xmind.ui.internal.editor.FileEditorInputFactory"
+            id="org.xmind.ui.WorkbookEditorInputFactory">
+      </factory>
+   </extension>
+   <extension
+         point="org.eclipse.core.runtime.adapters">
+      <factory
+            adaptableType="org.xmind.core.IAdaptable"
+            class="org.xmind.ui.internal.CoreUIAdapterFactory">
+         <adapter
+               type="org.eclipse.ui.IActionFilter">
+         </adapter>
+      </factory>
+   </extension>
+</plugin>
